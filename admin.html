@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Connexion Admin - Challenge IT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              neonBlue: "#38bdf8",
+              neonPink: "#e879f9",
+              cardBg: "#050816",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        background: radial-gradient(circle at top left, #0ea5e911, transparent 50%),
+          radial-gradient(circle at bottom right, #a855f711, transparent 50%),
+          #020617;
+        color: #e5e7eb;
+      }
+      .grid-bg {
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+      .glass {
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 55%),
+          radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.18), transparent 55%),
+          linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+        backdrop-filter: blur(18px);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen grid-bg flex flex-col">
+    <main class="flex-1 flex items-center justify-center px-4 pb-12">
+      <div class="relative glass rounded-3xl shadow-2xl px-8 py-10 max-w-md w-full">
+        <!-- croix pour revenir à l'accueil -->
+        <a
+          href="index.html"
+          class="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/70 border border-slate-700 text-slate-300 text-sm hover:text-white hover:border-slate-500 transition"
+        >
+          ×
+        </a>
+
+        <h1
+          class="text-3xl font-bold mb-2 text-center bg-gradient-to-r from-neonBlue to-neonPink bg-clip-text text-transparent"
+        >
+          Connexion admin
+        </h1>
+        <p class="text-center text-slate-400 mb-8 text-sm">
+          Accès réservé aux professeurs.
+        </p>
+
+        <form id="login-form" class="space-y-5">
+          <div>
+            <label for="password" class="block mb-2 text-sm text-slate-300">
+              Mot de passe administrateur
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Mot de passe"
+              class="w-full rounded-2xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-neonBlue focus:border-transparent"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-2xl px-6 py-3 bg-gradient-to-r from-neonBlue to-neonPink text-sm font-semibold text-white shadow-lg hover:opacity-90 transition"
+          >
+            Se connecter
+          </button>
+        </form>
+
+        <p id="login-error" class="mt-4 text-xs text-center text-red-400 hidden">
+          Mot de passe incorrect.
+        </p>
+      </div>
+    </main>
+
+    <script>
+      const ADMIN_PASSWORD = "LetsgoITgogo";
+
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+
+      loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const pwd = document.getElementById("password").value.trim();
+
+        if (pwd === ADMIN_PASSWORD) {
+          loginError.classList.add("hidden");
+          // Redirection vers la page de gestion admin
+          window.location.href = "admin-gestion.html";
+        } else {
+          loginError.classList.remove("hidden");
+        }
+      });
+    </script>
+  </body>
+</html>
