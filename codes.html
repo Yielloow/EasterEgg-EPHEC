@@ -176,11 +176,11 @@
 
     <!-- Script Firebase / Firestore -->
     <script type="module">
-      // Imports CDN pour tout (pas besoin de firebase-config.js si inline, mais tu peux le garder)
+      // Imports CDN pour tout
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
       import { getFirestore, collection, query, where, getDocs, addDoc, updateDoc, doc, increment, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-      // Config inline (remplace par import { db } from "./firebase-config.js"; si tu préfères fichier séparé)
+    
+      // Config inline
       const firebaseConfig = {
         apiKey: "AIzaSyA03DcwilaXw7il8CltHAyHJPxuvFBdNso",
         authDomain: "easter-egg-ephec.firebaseapp.com",
@@ -189,9 +189,10 @@
         messagingSenderId: "600758213032",
         appId: "1:600758213032:web:b4188a883f5a0313f4e59d"
       };
+    
       const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-
+      const db = getFirestore(app);  // db est maintenant valide
+    
       const form = document.getElementById("code-form");
       const studentFields = document.getElementById("student-fields");
       const codeInput = document.getElementById("code");
@@ -204,15 +205,15 @@
       const leaderboardEl = document.getElementById("leaderboard");
       const hiddenAdminBtn = document.getElementById("hidden-admin-btn");
       const hintsListEl = document.getElementById("hints-list");
-
+    
       let currentEggDoc = null;
       let step = 1; // 1 = vérifier code, 2 = infos étudiant
-
+    
       // Bouton admin caché -> page de login admin
       hiddenAdminBtn.addEventListener("click", () => {
         window.location.href = "admin.html";
       });
-
+    
       function showError(msg) {
         errorText.textContent = msg;
         errorBox.classList.remove("hidden");
@@ -220,40 +221,41 @@
         void card.offsetWidth;
         card.classList.add("shake");
       }
-
+    
       function clearError() {
         errorBox.classList.add("hidden");
         card.classList.remove("shake");
       }
-
+    
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         clearError();
-
+    
         if (step === 1) {
           const code = codeInput.value.trim();
           if (!code) {
             showError("Merci d'entrer un code.");
             return;
           }
-
+    
           try {
             const eggsRef = collection(db, "eggs");
             const q = query(eggsRef, where("code", "==", code));
             const snap = await getDocs(q);
+    
             if (snap.empty) {
               showError("🛑 Code invalide. Vérifie le code et réessaie.");
               return;
             }
-
+    
             const docSnap = snap.docs[0];
             const egg = docSnap.data();
-
+    
             if (egg.usedCount >= egg.maxUses) {
               showError("🛑 Ce code a déjà été utilisé le nombre maximal de fois.");
               return;
             }
-
+    
             currentEggDoc = { id: docSnap.id, ...egg };
             step = 2;
             studentFields.classList.remove("hidden");
@@ -266,12 +268,12 @@
           const studentName = nameInput.value.trim();
           const studentClass = classInput.value.trim();
           const matricule = matriculeInput.value.trim();
-
+    
           if (!studentName || !studentClass || !matricule) {
             showError("🛑 Merci de compléter toutes les informations.");
             return;
           }
-
+    
           try {
             await addDoc(collection(db, "discoveries"), {
               eggId: currentEggDoc.id,
@@ -281,39 +283,42 @@
               points: currentEggDoc.points ?? 10,
               createdAt: serverTimestamp(),
             });
-
+    
             const eggRef = doc(db, "eggs", currentEggDoc.id);
             await updateDoc(eggRef, {
               usedCount: increment(1),
             });
-
+    
             alert("Bravo ! Ta découverte a été enregistrée 🎉");
-
+    
             form.reset();
             studentFields.classList.add("hidden");
             currentEggDoc = null;
             step = 1;
             clearError();
+    
+            // recharger les indices (au cas où un code vient d'être épuisé)
+            loadHints();
           } catch (err) {
             console.error(err);
             showError("🛑 Erreur lors de l'enregistrement de ta découverte.");
           }
         }
       });
-
+    
       // ===== Leaderboard : classement cumulé par étudiant =====
       function initLeaderboard() {
         const discoveriesRef = collection(db, "discoveries");
-
+    
         onSnapshot(discoveriesRef, (snap) => {
           if (snap.empty) {
             leaderboardEl.innerHTML =
               '<p class="text-slate-400 text-sm">Aucune découverte pour le moment.</p>';
             return;
           }
-
+    
           const stats = new Map();
-
+    
           snap.forEach((d) => {
             const data = d.data();
             const key = data.matricule || data.studentName || "inconnu";
@@ -330,10 +335,10 @@
             entry.points += data.points ?? 0;
             entry.count += 1;
           });
-
+    
           const arr = Array.from(stats.values());
           arr.sort((a, b) => b.points - a.points);
-
+    
           const top = arr.slice(0, 10);
           let html = "";
           let rank = 1;
@@ -356,22 +361,23 @@
               </div>
             `;
           });
-
+    
           leaderboardEl.innerHTML = html;
         });
       }
-
-      // ===== Indices des codes restants (maintenant realtime avec onSnapshot) =====
-      function initHints() {
-        const eggsRef = collection(db, "eggs");
-
-        onSnapshot(eggsRef, (snap) => {  // Remplace getDocs par onSnapshot pour update live
+    
+      // ===== Indices des codes restants =====
+      async function loadHints() {
+        try {
+          const eggsRef = collection(db, "eggs");
+          const snap = await getDocs(eggsRef);
+    
           if (snap.empty) {
             hintsListEl.innerHTML =
               '<p class="text-slate-400 text-sm">Aucun Easter Egg configuré pour le moment.</p>';
             return;
           }
-
+    
           const items = [];
           snap.forEach((d) => {
             const egg = d.data();
@@ -385,16 +391,13 @@
               });
             }
           });
-
+    
           if (items.length === 0) {
             hintsListEl.innerHTML =
               '<p class="text-slate-400 text-sm">Tous les Easter Eggs ont été découverts pour le moment.</p>';
             return;
           }
-
-          // Tri optionnel par cours (alphabetique)
-          items.sort((a, b) => a.cours.localeCompare(b.cours));
-
+    
           let html = "";
           items.forEach((item) => {
             html += `
@@ -406,17 +409,18 @@
               </div>
             `;
           });
-
+    
           hintsListEl.innerHTML = html;
-        }, (err) => {  // Gestion erreur pour snapshot
+        } catch (err) {
           console.error(err);
           hintsListEl.innerHTML =
             '<p class="text-red-400 text-sm">Erreur lors du chargement des indices.</p>';
-        });
+        }
       }
-
+    
       initLeaderboard();
-      initHints();  // Renommé pour cohérence, mais appelle la version realtime
+      loadHints();
     </script>
   </body>
 </html>
+
