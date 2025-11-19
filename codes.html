@@ -70,7 +70,7 @@
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <span>🏆</span> Classement
           </h2>
-          <p class="text-xs text-slate-400 mb-3">
+          <p class="text-xs text-slate-400 mb-4">
             Classement des étudiants basé sur le total de points cumulés.
           </p>
           <div id="leaderboard" class="space-y-3 text-sm">
@@ -176,19 +176,21 @@
 
     <!-- Script Firebase / Firestore -->
     <script type="module">
-      import { db } from "./firebase-config.js";
-      import {
-        collection,
-        query,
-        where,
-        getDocs,
-        addDoc,
-        updateDoc,
-        doc,
-        increment,
-        serverTimestamp,
-        onSnapshot,
-      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+      // Imports CDN pour tout (pas besoin de firebase-config.js si inline, mais tu peux le garder)
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+      import { getFirestore, collection, query, where, getDocs, addDoc, updateDoc, doc, increment, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+      // Config inline (remplace par import { db } from "./firebase-config.js"; si tu préfères fichier séparé)
+      const firebaseConfig = {
+        apiKey: "AIzaSyA03DcwilaXw7il8CltHAyHJPxuvFBdNso",
+        authDomain: "easter-egg-ephec.firebaseapp.com",
+        projectId: "easter-egg-ephec",
+        storageBucket: "easter-egg-ephec.firebasestorage.app",
+        messagingSenderId: "600758213032",
+        appId: "1:600758213032:web:b4188a883f5a0313f4e59d"
+      };
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
 
       const form = document.getElementById("code-form");
       const studentFields = document.getElementById("student-fields");
@@ -239,7 +241,6 @@
             const eggsRef = collection(db, "eggs");
             const q = query(eggsRef, where("code", "==", code));
             const snap = await getDocs(q);
-
             if (snap.empty) {
               showError("🛑 Code invalide. Vérifie le code et réessaie.");
               return;
@@ -293,9 +294,6 @@
             currentEggDoc = null;
             step = 1;
             clearError();
-
-            // recharger les indices (au cas où un code vient d'être épuisé)
-            loadHints();
           } catch (err) {
             console.error(err);
             showError("🛑 Erreur lors de l'enregistrement de ta découverte.");
@@ -363,12 +361,11 @@
         });
       }
 
-      // ===== Indices des codes restants =====
-      async function loadHints() {
-        try {
-          const eggsRef = collection(db, "eggs");
-          const snap = await getDocs(eggsRef);
+      // ===== Indices des codes restants (maintenant realtime avec onSnapshot) =====
+      function initHints() {
+        const eggsRef = collection(db, "eggs");
 
+        onSnapshot(eggsRef, (snap) => {  // Remplace getDocs par onSnapshot pour update live
           if (snap.empty) {
             hintsListEl.innerHTML =
               '<p class="text-slate-400 text-sm">Aucun Easter Egg configuré pour le moment.</p>';
@@ -395,6 +392,9 @@
             return;
           }
 
+          // Tri optionnel par cours (alphabetique)
+          items.sort((a, b) => a.cours.localeCompare(b.cours));
+
           let html = "";
           items.forEach((item) => {
             html += `
@@ -408,16 +408,15 @@
           });
 
           hintsListEl.innerHTML = html;
-        } catch (err) {
+        }, (err) => {  // Gestion erreur pour snapshot
           console.error(err);
           hintsListEl.innerHTML =
             '<p class="text-red-400 text-sm">Erreur lors du chargement des indices.</p>';
-        }
+        });
       }
 
       initLeaderboard();
-      loadHints();
+      initHints();  // Renommé pour cohérence, mais appelle la version realtime
     </script>
   </body>
 </html>
-
