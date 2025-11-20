@@ -70,7 +70,7 @@
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <span>🏆</span> Classement
           </h2>
-          <p class="text-xs text-slate-400 mb-4">
+          <p class="text-xs text-slate-400 mb-3">
             Classement des étudiants basé sur le total de points cumulés.
           </p>
           <div id="leaderboard" class="space-y-3 text-sm">
@@ -134,24 +134,12 @@
                 </div>
               </div>
 
-              <!-- Champs étudiant (affichés après code valide) -->
+              <!-- Champ email étudiant (affiché après code valide) -->
               <div id="student-fields" class="grid grid-cols-1 gap-3 hidden">
                 <input
-                  id="student-name"
-                  type="text"
-                  placeholder="Nom"
-                  class="rounded-full bg-slate-900/70 border border-slate-700 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-neonBlue focus:border-transparent"
-                />
-                <input
-                  id="student-class"
-                  type="text"
-                  placeholder="Classe"
-                  class="rounded-full bg-slate-900/70 border border-slate-700 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-neonBlue focus:border-transparent"
-                />
-                <input
-                  id="student-matricule"
-                  type="text"
-                  placeholder="Matricule"
+                  id="student-email"
+                  type="email"
+                  placeholder="Votre email EPHEC (@students.ephec.be)"
                   class="rounded-full bg-slate-900/70 border border-slate-700 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-neonBlue focus:border-transparent"
                 />
               </div>
@@ -176,11 +164,9 @@
 
     <!-- Script Firebase / Firestore -->
     <script type="module">
-      // Imports CDN pour tout
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
       import { getFirestore, collection, query, where, getDocs, addDoc, updateDoc, doc, increment, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-    
-      // Config inline
+
       const firebaseConfig = {
         apiKey: "AIzaSyA03DcwilaXw7il8CltHAyHJPxuvFBdNso",
         authDomain: "easter-egg-ephec.firebaseapp.com",
@@ -189,31 +175,29 @@
         messagingSenderId: "600758213032",
         appId: "1:600758213032:web:b4188a883f5a0313f4e59d"
       };
-    
+
       const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);  // db est maintenant valide
-    
+      const db = getFirestore(app);
+
       const form = document.getElementById("code-form");
       const studentFields = document.getElementById("student-fields");
       const codeInput = document.getElementById("code");
-      const nameInput = document.getElementById("student-name");
-      const classInput = document.getElementById("student-class");
-      const matriculeInput = document.getElementById("student-matricule");
+      const emailInput = document.getElementById("student-email");
       const errorBox = document.getElementById("error-box");
       const errorText = document.getElementById("error-text");
       const card = document.getElementById("card");
       const leaderboardEl = document.getElementById("leaderboard");
       const hiddenAdminBtn = document.getElementById("hidden-admin-btn");
       const hintsListEl = document.getElementById("hints-list");
-    
+
       let currentEggDoc = null;
-      let step = 1; // 1 = vérifier code, 2 = infos étudiant
-    
+      let step = 1; // 1 = vérifier code, 2 = infos email
+
       // Bouton admin caché -> page de login admin
       hiddenAdminBtn.addEventListener("click", () => {
         window.location.href = "admin.html";
       });
-    
+
       function showError(msg) {
         errorText.textContent = msg;
         errorBox.classList.remove("hidden");
@@ -221,83 +205,82 @@
         void card.offsetWidth;
         card.classList.add("shake");
       }
-    
+
       function clearError() {
         errorBox.classList.add("hidden");
         card.classList.remove("shake");
       }
-    
+
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         clearError();
-    
+
         if (step === 1) {
           const code = codeInput.value.trim();
           if (!code) {
             showError("Merci d'entrer un code.");
             return;
           }
-    
+
           try {
             const eggsRef = collection(db, "eggs");
             const q = query(eggsRef, where("code", "==", code));
             const snap = await getDocs(q);
-    
+
             if (snap.empty) {
               showError("🛑 Code invalide. Vérifie le code et réessaie.");
               return;
             }
-    
+
             const docSnap = snap.docs[0];
             const egg = docSnap.data();
-    
+
             if (egg.usedCount >= egg.maxUses) {
               showError("🛑 Ce code a déjà été utilisé le nombre maximal de fois.");
               return;
             }
-    
+
             currentEggDoc = { id: docSnap.id, ...egg };
             step = 2;
             studentFields.classList.remove("hidden");
-            alert("Code valide ! Entre maintenant ton nom, ta classe et ton matricule.");
+            alert("Code valide ! Entre maintenant ton email EPHEC.");
           } catch (err) {
             console.error(err);
             showError("🛑 Erreur lors de la vérification du code.");
           }
         } else if (step === 2 && currentEggDoc) {
-          const studentName = nameInput.value.trim();
-          const studentClass = classInput.value.trim();
-          const matricule = matriculeInput.value.trim();
-    
-          if (!studentName || !studentClass || !matricule) {
-            showError("🛑 Merci de compléter toutes les informations.");
+          const email = emailInput.value.trim().toLowerCase();
+
+          if (!email.endsWith("@students.ephec.be")) {
+            showError("🛑 L'email doit être un email EPHEC (@students.ephec.be).");
             return;
           }
-    
+
+          // Extraire prénominitiale.nom (avant le @)
+          const studentKey = email.split("@")[0];  // ex. : j.doe
+
           try {
             await addDoc(collection(db, "discoveries"), {
               eggId: currentEggDoc.id,
-              studentName,
-              studentClass,
-              matricule,
+              studentKey,  // Stocke j.doe pour cumul
               points: currentEggDoc.points ?? 10,
               createdAt: serverTimestamp(),
             });
-    
+
             const eggRef = doc(db, "eggs", currentEggDoc.id);
             await updateDoc(eggRef, {
               usedCount: increment(1),
             });
-    
+
             alert("Bravo ! Ta découverte a été enregistrée 🎉");
-    
+
             form.reset();
             studentFields.classList.add("hidden");
             currentEggDoc = null;
             step = 1;
             clearError();
-    
-            // recharger les indices (au cas où un code vient d'être épuisé)
+
+            // Recharger les indices (au cas où un code vient d'être épuisé)
             loadHints();
           } catch (err) {
             console.error(err);
@@ -305,40 +288,36 @@
           }
         }
       });
-    
-      // ===== Leaderboard : classement cumulé par étudiant =====
+
+      // ===== Leaderboard : nom + points cumulés =====
       function initLeaderboard() {
         const discoveriesRef = collection(db, "discoveries");
-    
+
         onSnapshot(discoveriesRef, (snap) => {
           if (snap.empty) {
             leaderboardEl.innerHTML =
               '<p class="text-slate-400 text-sm">Aucune découverte pour le moment.</p>';
             return;
           }
-    
+
           const stats = new Map();
-    
+
           snap.forEach((d) => {
             const data = d.data();
-            const key = data.matricule || data.studentName || "inconnu";
+            const key = data.studentKey || "inconnu";
             if (!stats.has(key)) {
               stats.set(key, {
-                matricule: data.matricule || "",
-                name: data.studentName || "Anonyme",
-                cls: data.studentClass || "",
+                name: key.charAt(0).toUpperCase() + key.slice(1),  // Capitalise pour affichage
                 points: 0,
-                count: 0,
               });
             }
             const entry = stats.get(key);
             entry.points += data.points ?? 0;
-            entry.count += 1;
           });
-    
+
           const arr = Array.from(stats.values());
           arr.sort((a, b) => b.points - a.points);
-    
+
           const top = arr.slice(0, 10);
           let html = "";
           let rank = 1;
@@ -351,33 +330,28 @@
                   </div>
                   <div>
                     <p class="font-semibold">${p.name}</p>
-                    <p class="text-xs text-slate-400">${p.cls} ${p.matricule ? "• " + p.matricule : ""}</p>
                   </div>
                 </div>
-                <div class="text-right text-xs">
-                  <p class="font-semibold text-neonBlue">${p.points} pts</p>
-                  <p class="text-slate-400">${p.count} code(s)</p>
-                </div>
+                <p class="font-semibold text-neonBlue">${p.points} pts</p>
               </div>
             `;
           });
-    
+
           leaderboardEl.innerHTML = html;
         });
       }
-    
-      // ===== Indices des codes restants =====
-      async function loadHints() {
-        try {
-          const eggsRef = collection(db, "eggs");
-          const snap = await getDocs(eggsRef);
-    
+
+      // ===== Indices des codes restants (realtime) =====
+      function initHints() {
+        const eggsRef = collection(db, "eggs");
+
+        onSnapshot(eggsRef, (snap) => {
           if (snap.empty) {
             hintsListEl.innerHTML =
               '<p class="text-slate-400 text-sm">Aucun Easter Egg configuré pour le moment.</p>';
             return;
           }
-    
+
           const items = [];
           snap.forEach((d) => {
             const egg = d.data();
@@ -391,13 +365,16 @@
               });
             }
           });
-    
+
           if (items.length === 0) {
             hintsListEl.innerHTML =
               '<p class="text-slate-400 text-sm">Tous les Easter Eggs ont été découverts pour le moment.</p>';
             return;
           }
-    
+
+          // Tri par cours
+          items.sort((a, b) => a.cours.localeCompare(b.cours));
+
           let html = "";
           items.forEach((item) => {
             html += `
@@ -409,18 +386,17 @@
               </div>
             `;
           });
-    
+
           hintsListEl.innerHTML = html;
-        } catch (err) {
+        }, (err) => {
           console.error(err);
           hintsListEl.innerHTML =
             '<p class="text-red-400 text-sm">Erreur lors du chargement des indices.</p>';
-        }
+        });
       }
-    
+
       initLeaderboard();
-      loadHints();
+      initHints();
     </script>
   </body>
 </html>
-
